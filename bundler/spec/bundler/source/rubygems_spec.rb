@@ -7,7 +7,7 @@ RSpec.describe Bundler::Source::Rubygems do
 
   describe "caches" do
     it "includes Bundler.app_cache" do
-      expect(subject.caches).to include(Bundler.app_cache)
+      expect(subject.caches).to include(Bundler.app_cache.to_s)
     end
 
     it "includes GEM_PATH entries" do
@@ -16,9 +16,9 @@ RSpec.describe Bundler::Source::Rubygems do
       end
     end
 
-    it "is an array of strings or pathnames" do
+    it "is an array of strings" do
       subject.caches.each do |cache|
-        expect([String, Pathname]).to include(cache.class)
+        expect(String).to eq(cache.class)
       end
     end
   end

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "pathname"
+require_relative "vendored_pathname"
 require "rbconfig"
 
 require_relative "version"
@@ -26,8 +26,8 @@ module Bundler
       gemfile = default_gemfile
 
       case gemfile.basename.to_s
-      when "gems.rb" then Pathname.new(gemfile.sub(/.rb$/, ".locked"))
-      else Pathname.new("#{gemfile}.lock")
+      when "gems.rb" then gemfile.sub(/.rb$/, ".locked")
+      else gemfile.sub(/$/, ".lock")
       end.tap{|x| x.untaint if RUBY_VERSION < "2.7" }
     end
 
@@ -55,7 +55,7 @@ module Bundler
 
     def pwd
       Bundler.rubygems.ext_lock.synchronize do
-        Pathname.pwd
+        Dir.pwd
       end
     end
 

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "bundler/vendored_fileutils"
-require "pathname"
+require_relative "bundler/vendored_pathname"
 require "rbconfig"
 
 require_relative "bundler/errors"
@@ -93,7 +93,7 @@ module Bundler
 
     # Returns absolute path of where gems are installed on the filesystem.
     def bundle_path
-      @bundle_path ||= Pathname.new(configured_bundle_path.path).expand_path(root)
+      @bundle_path ||= Bundler::Pathname.new(configured_bundle_path.path).expand_path(root)
     end
 
     def configured_bundle_path
@@ -104,7 +104,7 @@ module Bundler
     def bin_path
       @bin_path ||= begin
         path = settings[:bin] || "bin"
-        path = Pathname.new(path).expand_path(root).expand_path
+        path = Bundler::Pathname.new(path).expand_path(root).expand_path
         SharedHelpers.filesystem_access(path) {|p| FileUtils.mkdir_p(p) }
         path
       end
@@ -287,7 +287,7 @@ module Bundler
                 rescue GemfileNotFound
                   bundle_dir = default_bundle_dir
                   raise GemfileNotFound, "Could not locate Gemfile or .bundle/ directory" unless bundle_dir
-                  Pathname.new(File.expand_path("..", bundle_dir))
+                  bundle_dir.parent
                 end
     end
 
@@ -455,6 +455,10 @@ EOF
       SharedHelpers.default_lockfile
     end
 
+    def relative_path_to_lockfile
+      default_lockfile.relative_path_from(SharedHelpers.pwd)
+    end
+
     def default_bundle_dir
       SharedHelpers.default_bundle_dir
     end
@@ -492,11 +496,11 @@ EOF
         bin_dir = bin_dir.parent until bin_dir.exist?
 
         # if any directory is not writable, we need sudo
-        files = [path, bin_dir] | Dir[bundle_path.join("build_info/*").to_s] | Dir[bundle_path.join("*").to_s]
+        files = [path.to_s, bin_dir.to_s] | Dir[bundle_path.join("build_info/*").to_s] | Dir[bundle_path.join("*").to_s]
         unwritable_files = files.reject {|f| File.writable?(f) }
         sudo_needed = !unwritable_files.empty?
         if sudo_needed
-          Bundler.ui.warn "Following files may not be writable, so sudo is needed:\n  #{unwritable_files.map(&:to_s).sort.join("\n  ")}"
+          Bundler.ui.warn "Following files may not be writable, so sudo is needed:\n  #{unwritable_files.sort.join("\n  ")}"
         end
       end
 
