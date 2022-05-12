@@ -10,37 +10,19 @@ require_relative "current_ruby"
 
 module Bundler
   module SharedHelpers
-    def root
-      gemfile = find_gemfile
-      raise GemfileNotFound, "Could not locate Gemfile" unless gemfile
-      Pathname.new(gemfile).tap{|x| x.untaint if RUBY_VERSION < "2.7" }.expand_path.parent
-    end
-
     def default_gemfile
       gemfile = find_gemfile
       raise GemfileNotFound, "Could not locate Gemfile" unless gemfile
-      Pathname.new(gemfile).tap{|x| x.untaint if RUBY_VERSION < "2.7" }.expand_path
+      gemfile
     end
 
     def default_lockfile
       gemfile = default_gemfile
 
       case gemfile.basename.to_s
-      when "gems.rb" then Pathname.new(gemfile.sub(/.rb$/, ".locked"))
-      else Pathname.new("#{gemfile}.lock")
-      end.tap{|x| x.untaint if RUBY_VERSION < "2.7" }
-    end
-
-    def default_bundle_dir
-      bundle_dir = find_directory(".bundle")
-      return nil unless bundle_dir
-
-      bundle_dir = Pathname.new(bundle_dir)
-
-      global_bundle_dir = Bundler.user_home.join(".bundle")
-      return nil if bundle_dir == global_bundle_dir
-
-      bundle_dir
+      when "gems.rb" then gemfile.sub(/.rb$/, ".locked")
+      else gemfile.sub(/$/, ".lock")
+      end
     end
 
     def in_bundle?
@@ -50,6 +32,22 @@ module Bundler
     def chdir(dir, &blk)
       Bundler.rubygems.ext_lock.synchronize do
         Dir.chdir dir, &blk
+      end
+    end
+
+    def find_gemfile
+      require_relative "../bundler"
+      find_gemfile_if_empty(Bundler.settings[:gemfile])
+    end
+
+    def find_gemfile_if_empty(candidate)
+      return expand(candidate) if candidate && !candidate.empty?
+      find_file(*gemfile_names)
+    end
+
+    def find_directory(*names, base: pwd)
+      search_up(*names, :base => base) do |dirname|
+        return dirname if dirname.directory?
       end
     end
 
@@ -200,6 +198,10 @@ module Bundler
 
     private
 
+    def expand(file)
+      Pathname.new(file).tap{|x| x.untaint if RUBY_VERSION < "2.7" }.expand_path
+    end
+
     def validate_bundle_path
       path_separator = Bundler.rubygems.path_separator
       return unless Bundler.bundle_path.to_s.split(path_separator).size > 1
@@ -212,33 +214,21 @@ module Bundler
       raise Bundler::PathError, message
     end
 
-    def find_gemfile
-      given = ENV["BUNDLE_GEMFILE"]
-      return given if given && !given.empty?
-      find_file(*gemfile_names)
-    end
-
     def gemfile_names
       ["gems.rb", "Gemfile"]
     end
 
     def find_file(*names)
       search_up(*names) do |filename|
-        return filename if File.file?(filename)
+        return filename if filename.file?
       end
     end
 
-    def find_directory(*names)
-      search_up(*names) do |dirname|
-        return dirname if File.directory?(dirname)
-      end
-    end
-
-    def search_up(*names)
+    def search_up(*names, base: pwd)
       previous = nil
-      current  = File.expand_path(SharedHelpers.pwd).tap{|x| x.untaint if RUBY_VERSION < "2.7" }
+      current  = base.tap{|x| x.untaint if RUBY_VERSION < "2.7" }
 
-      until !File.directory?(current) || current == previous
+      until !current.directory? || current == previous
         if ENV["BUNDLER_SPEC_RUN"]
           # avoid stepping above the tmp directory when testing
           gemspec = if ENV["GEM_COMMAND"]
@@ -249,15 +239,15 @@ module Bundler
           end
 
           # avoid stepping above the tmp directory when testing
-          return nil if File.file?(File.join(current, gemspec))
+          return nil if current.join(gemspec).file?
         end
 
         names.each do |name|
-          filename = File.join(current, name)
+          filename = current.join(name)
           yield filename
         end
         previous = current
-        current = File.expand_path("..", current)
+        current = current.parent
       end
     end
 
@@ -282,16 +272,16 @@ module Bundler
       # bundler is a default gem, exe path is separate
       exe_file = Bundler.rubygems.bin_path("bundler", "bundle", VERSION) unless File.exist?(exe_file)
 
-      Bundler::SharedHelpers.set_env "BUNDLE_BIN_PATH", exe_file
-      Bundler::SharedHelpers.set_env "BUNDLE_GEMFILE", find_gemfile.to_s
-      Bundler::SharedHelpers.set_env "BUNDLER_VERSION", Bundler::VERSION
+      set_env "BUNDLE_BIN_PATH", exe_file
+      set_env "BUNDLE_GEMFILE", find_gemfile.to_s
+      set_env "BUNDLER_VERSION", Bundler::VERSION
     end
 
     def set_path
       validate_bundle_path
       paths = (ENV["PATH"] || "").split(File::PATH_SEPARATOR)
       paths.unshift "#{Bundler.bundle_path}/bin"
-      Bundler::SharedHelpers.set_env "PATH", paths.uniq.join(File::PATH_SEPARATOR)
+      set_env "PATH", paths.uniq.join(File::PATH_SEPARATOR)
     end
 
     def set_rubyopt
@@ -299,13 +289,13 @@ module Bundler
       setup_require = "-r#{File.expand_path("setup", __dir__)}"
       return if !rubyopt.empty? && rubyopt.first =~ /#{setup_require}/
       rubyopt.unshift setup_require
-      Bundler::SharedHelpers.set_env "RUBYOPT", rubyopt.join(" ")
+      set_env "RUBYOPT", rubyopt.join(" ")
     end
 
     def set_rubylib
       rubylib = (ENV["RUBYLIB"] || "").split(File::PATH_SEPARATOR)
       rubylib.unshift bundler_ruby_lib unless RbConfig::CONFIG["rubylibdir"] == bundler_ruby_lib
-      Bundler::SharedHelpers.set_env "RUBYLIB", rubylib.uniq.join(File::PATH_SEPARATOR)
+      set_env "RUBYLIB", rubylib.uniq.join(File::PATH_SEPARATOR)
     end
 
     def bundler_ruby_lib

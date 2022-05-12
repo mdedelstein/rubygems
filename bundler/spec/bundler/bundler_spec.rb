@@ -210,18 +210,18 @@ EOF
   describe "#user_home" do
     context "home directory is set" do
       it "should return the user home" do
-        path = "/home/oggy"
+        path = Pathname("/home/oggy")
         allow(Bundler.rubygems).to receive(:user_home).and_return(path)
-        allow(File).to receive(:directory?).with(path).and_return true
-        allow(File).to receive(:writable?).with(path).and_return true
-        expect(Bundler.user_home).to eq(Pathname(path))
+        allow(path).to receive(:directory?).and_return true
+        allow(path).to receive(:writable?).and_return true
+        expect(Bundler.user_home).to eq(path)
       end
 
       context "is not a directory" do
         it "should issue a warning and return a temporary user home" do
-          path = "/home/oggy"
+          path = Pathname("/home/oggy")
           allow(Bundler.rubygems).to receive(:user_home).and_return(path)
-          allow(File).to receive(:directory?).with(path).and_return false
+          allow(path).to receive(:directory?).and_return false
           allow(Bundler).to receive(:tmp).and_return(Pathname.new("/tmp/trulyrandom"))
           expect(Bundler.ui).to receive(:warn).with("`/home/oggy` is not a directory.\n")
           expect(Bundler.ui).to receive(:warn).with("Bundler will use `/tmp/trulyrandom' as your home directory temporarily.\n")
@@ -230,14 +230,14 @@ EOF
       end
 
       context "is not writable" do
-        let(:path) { "/home/oggy" }
-        let(:dotbundle) { "/home/oggy/.bundle" }
+        let(:path) { Pathname("/home/oggy") }
+        let(:dotbundle) { Pathname("/home/oggy/.bundle") }
 
         it "should issue a warning and return a temporary user home" do
           allow(Bundler.rubygems).to receive(:user_home).and_return(path)
-          allow(File).to receive(:directory?).with(path).and_return true
-          allow(File).to receive(:writable?).with(path).and_return false
-          allow(File).to receive(:directory?).with(dotbundle).and_return false
+          allow(path).to receive(:directory?).and_return true
+          allow(path).to receive(:writable?).and_return false
+          allow(dotbundle).to receive(:directory?).and_return false
           allow(Bundler).to receive(:tmp).and_return(Pathname.new("/tmp/trulyrandom"))
           expect(Bundler.ui).to receive(:warn).with("`/home/oggy` is not writable.\n")
           expect(Bundler.ui).to receive(:warn).with("Bundler will use `/tmp/trulyrandom' as your home directory temporarily.\n")
@@ -247,23 +247,13 @@ EOF
         context ".bundle exists and have correct permissions" do
           it "should return the user home" do
             allow(Bundler.rubygems).to receive(:user_home).and_return(path)
-            allow(File).to receive(:directory?).with(path).and_return true
-            allow(File).to receive(:writable?).with(path).and_return false
-            allow(File).to receive(:directory?).with(dotbundle).and_return true
-            allow(File).to receive(:writable?).with(dotbundle).and_return true
-            expect(Bundler.user_home).to eq(Pathname(path))
+            allow(path).to receive(:directory?).and_return true
+            allow(path).to receive(:writable?).and_return true
+            allow(dotbundle).to receive(:directory?).and_return true
+            allow(dotbundle).to receive(:writable?).and_return true
+            expect(Bundler.user_home).to eq(path)
           end
         end
-      end
-    end
-
-    context "home directory is not set" do
-      it "should issue warning and return a temporary user home" do
-        allow(Bundler.rubygems).to receive(:user_home).and_return(nil)
-        allow(Bundler).to receive(:tmp).and_return(Pathname.new("/tmp/trulyrandom"))
-        expect(Bundler.ui).to receive(:warn).with("Your home directory is not set.\n")
-        expect(Bundler.ui).to receive(:warn).with("Bundler will use `/tmp/trulyrandom' as your home directory temporarily.\n")
-        expect(Bundler.user_home).to eq(Pathname("/tmp/trulyrandom"))
       end
     end
   end
@@ -376,6 +366,45 @@ MESSAGE
           expect(Bundler.ui).to receive(:warn).with(message)
           expect(Bundler.requires_sudo?).to eq(true)
         end
+      end
+    end
+  end
+
+  describe "#default_bundle_dir" do
+    before do
+      allow(Pathname).to receive(:pwd).and_return(bundled_app)
+    end
+
+    context ".bundle does not exist" do
+      it "returns nil" do
+        expect(subject.default_bundle_dir).to be_nil
+      end
+    end
+
+    context ".bundle is global .bundle" do
+      let(:global_rubygems_dir) { Pathname.new(bundled_app) }
+
+      before do
+        Dir.mkdir bundled_app(".bundle")
+        allow(Bundler.rubygems).to receive(:user_home).and_return(global_rubygems_dir)
+      end
+
+      it "returns nil" do
+        expect(subject.default_bundle_dir).to be_nil
+      end
+    end
+
+    context ".bundle is not global .bundle" do
+      let(:global_rubygems_dir)      { Pathname.new("/path/rubygems") }
+      let(:expected_bundle_dir_path) { Pathname.new("#{bundled_app}/.bundle") }
+
+      before do
+        Dir.mkdir bundled_app(".bundle")
+        allow(Bundler.rubygems).to receive(:user_home).and_return(global_rubygems_dir)
+      end
+
+      it "returns the .bundle path" do
+        expect(subject.default_bundle_dir).to eq(expected_bundle_dir_path)
       end
     end
   end
