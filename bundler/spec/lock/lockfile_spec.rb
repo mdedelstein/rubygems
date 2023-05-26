@@ -126,7 +126,7 @@ RSpec.describe "the lockfile format" do
   end
 
   it "does not update the lockfile's bundler version if nothing changed during bundle install, and uses the latest version", :rubygems => "< 3.3.0.a" do
-    version = "#{Bundler::VERSION.split(".").first}.0.0.a"
+    version = "#{Bundler.bundler_major_version}.0.0.a"
 
     lockfile <<-L
       GEM

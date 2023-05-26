@@ -1388,7 +1388,7 @@ RSpec.describe "bundle update --bundler" do
       gem "rack"
     G
 
-    bundle :update, :bundler => "2.3.0.dev"
+    bundle :update, :bundler => "2.3.0.dev", :verbose => true
 
     # Only updates properly on modern RubyGems.
 
@@ -1425,7 +1425,7 @@ RSpec.describe "bundle update --bundler" do
       gem "rack"
     G
 
-    bundle :update, :bundler => "2.3.9", :raise_on_error => false
+    bundle :update, :bundler => "2.3.9", :raise_on_error => false, :verbose => true
 
     expect(out).not_to include("Fetching gem metadata from https://rubygems.org/")
 

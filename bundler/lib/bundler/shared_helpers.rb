@@ -123,7 +123,7 @@ module Bundler
         message = "#{message} (called at #{caller_location.path}:#{caller_location.lineno})"
       end
 
-      bundler_major_version = Bundler.bundler_major_version
+      bundler_major_version = Bundler.effective_major_version
       if bundler_major_version > major_version
         require_relative "errors"
         raise DeprecatedError, "[REMOVED] #{message}"

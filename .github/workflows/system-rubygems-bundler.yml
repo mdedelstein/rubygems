@@ -55,8 +55,8 @@ jobs:
       - name: Prepare dependencies
         run: |
           bin/rake spec:parallel_deps
-      - name: Replace version
-        run: BUNDLER_SPEC_SUB_VERSION=${{ matrix.bundler.value }} bin/rake override_version
+      - name: Set version
+        run: echo "BUNDLER_EFFECTIVE_VERSION=${{ matrix.bundler.value }}" >> $GITHUB_ENV
         if: matrix.bundler.value != ''
       - name: Run Test
         run: |

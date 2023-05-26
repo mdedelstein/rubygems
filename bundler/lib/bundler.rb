@@ -555,7 +555,7 @@ EOF
     end
 
     def feature_flag
-      @feature_flag ||= FeatureFlag.new(VERSION)
+      @feature_flag ||= FeatureFlag.new(EFFECTIVE_VERSION)
     end
 
     def reset!
