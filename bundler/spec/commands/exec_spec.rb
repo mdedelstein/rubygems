@@ -114,7 +114,7 @@ RSpec.describe "bundle exec" do
   end
 
   it "respects custom process title when loading through ruby" do
-    skip "https://github.com/rubygems/rubygems/issues/3351" if Gem.win_platform?
+    skip "ps has different options on Windows" if Gem.win_platform?
 
     script_that_changes_its_own_title_and_checks_if_picked_up_by_ps_unix_utility = <<~'RUBY'
       Process.setproctitle("1-2-3-4-5-6-7")
@@ -139,8 +139,6 @@ RSpec.describe "bundle exec" do
   end
 
   it "handles --keep-file-descriptors" do
-    skip "https://github.com/rubygems/rubygems/issues/3351" if Gem.win_platform?
-
     require "tempfile"
 
     command = Tempfile.new("io-test")
@@ -424,14 +422,12 @@ RSpec.describe "bundle exec" do
     each_prefix.call("exec") do |exec|
       describe "when #{exec} is used" do
         before(:each) do
-          skip "https://github.com/rubygems/rubygems/issues/3351" if Gem.win_platform?
-
           install_gemfile <<-G
             source "#{file_uri_for(gem_repo1)}"
             gem "rack"
           G
 
-          create_file("print_args", <<-'RUBY')
+          create_script("print_args", <<-'RUBY')
             #!/usr/bin/env ruby
             puts "args: #{ARGV.inspect}"
           RUBY

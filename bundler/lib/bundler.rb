@@ -515,14 +515,15 @@ module Bundler
     end
 
     def which(executable)
-      if File.file?(executable) && File.executable?(executable)
-        executable
-      elsif paths = ENV["PATH"]
+      executable_path = find_executable(executable)
+      return executable_path if executable_path
+
+      if paths = ENV["PATH"]
         quote = '"'
         paths.split(File::PATH_SEPARATOR).find do |path|
           path = path[1..-2] if path.start_with?(quote) && path.end_with?(quote)
-          executable_path = File.expand_path(executable, path)
-          return executable_path if File.file?(executable_path) && File.executable?(executable_path)
+          executable_path = find_executable(File.expand_path(executable, path))
+          return executable_path if executable_path
         end
       end
     end
@@ -579,7 +580,7 @@ module Bundler
 
     def git_present?
       return @git_present if defined?(@git_present)
-      @git_present = Bundler.which("git#{RbConfig::CONFIG["EXEEXT"]}")
+      @git_present = Bundler.which("git")
     end
 
     def feature_flag
@@ -650,6 +651,14 @@ module Bundler
     end
 
     private
+
+    def find_executable(path)
+      extensions = RbConfig::CONFIG["EXECUTABLE_EXTS"]&.split
+      extensions = [RbConfig::CONFIG["EXEEXT"]] unless extensions&.any?
+      candidates = extensions.map {|ext| "#{path}#{ext}" }
+
+      candidates.find {|candidate| File.file?(candidate) && File.executable?(candidate) }
+    end
 
     def load_marshal(data, marshal_proc: nil)
       Marshal.load(data, marshal_proc)
