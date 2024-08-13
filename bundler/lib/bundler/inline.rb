@@ -60,6 +60,11 @@ def gemfile(install = false, options = {}, &gemfile)
             Bundler.ui.info "Post-install message from #{name}:\n#{message}"
           end
         end
+
+        unless install
+          Bundler.ui.info "Re-executing program with installed gems"
+          Process.exec(RbConfig.ruby, $PROGRAM_NAME, *ARGV)
+        end
       end
 
       runtime = Bundler::Runtime.new(nil, definition)
